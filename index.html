@@ -193,9 +193,24 @@
       padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
       background: var(--card); border-top: 1px solid var(--border);
     }
+    .die-top-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
     .die-hint-row {
-      font-size: 10px; color: var(--muted); text-align: center;
-      margin-bottom: 8px; letter-spacing: 0.3px;
+      font-size: 10px; color: var(--muted); letter-spacing: 0.3px;
+    }
+    .undo-btn {
+      background: var(--card2); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--muted); padding: 5px 13px; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .undo-btn:not(:disabled):active { background: var(--border); color: var(--text); transform: scale(0.95); }
+    .undo-btn:disabled { opacity: 0.25; cursor: default; }
+    .bust-overlay .bust-undo {
+      margin-top: 16px; background: rgba(255,255,255,0.15); color: white;
+      border: 2px solid rgba(255,255,255,0.35); border-radius: 14px;
+      padding: 12px 36px; font-size: 16px; font-weight: 700; cursor: pointer;
     }
     .die-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
 
@@ -381,7 +396,10 @@
   </div>
   <div id="scoreboard" class="scoreboard"></div>
   <div class="die-section">
-    <div class="die-hint-row" id="die-hint-row">Tap the number that was rolled</div>
+    <div class="die-top-row">
+      <span class="die-hint-row">Tap the number that was rolled</span>
+      <button id="undo-btn" class="undo-btn" onclick="undoAction()" disabled>↩ Undo</button>
+    </div>
     <div class="die-grid">
       <button class="die-btn die-1" id="die-1" onclick="rollDie(1)">1<span class="die-tag" id="tag-1"></span></button>
       <button class="die-btn die-2" id="die-2" onclick="rollDie(2)">2<span class="die-tag" id="tag-2"></span></button>
@@ -460,7 +478,46 @@ let G = {
   lvlRoundHistory: [],  // [[score0, score1, ...], ...] completed rounds this level
   bustPending: false,   // blocking bust overlay
   currentScreen: 'setup', // for restoration: setup | game | results | final
+  history: [],          // undo stack — up to 3 snapshots
 };
+
+// ═══════════════════════════════════════════
+//  UNDO SYSTEM
+// ═══════════════════════════════════════════
+function pushHistory() {
+  // Deep-clone current state; store outSet as array, drop history to avoid nesting
+  const snap = JSON.parse(JSON.stringify({ ...G, outSet: [...G.outSet], history: [] }));
+  G.history.push(snap);
+  if (G.history.length > 3) G.history.shift(); // keep last 3 only
+  updateUndoBtn();
+}
+
+function undoAction() {
+  if (G.history.length === 0) { showToast('Nothing to undo'); return; }
+  const remaining = G.history.slice(0, -1);          // history minus the last entry
+  const prev = G.history[G.history.length - 1];      // the snapshot to restore
+  prev.outSet = new Set(prev.outSet);                 // re-hydrate Set
+  Object.assign(G, prev);
+  G.history = remaining;                              // preserve remaining undo steps
+
+  // Remove bust overlay if it's showing
+  const bustEl = document.getElementById('bust-overlay');
+  if (bustEl) bustEl.remove();
+  G.bustPending = false;
+
+  updateDieTags();
+  updateRulesBar();
+  renderGame();
+  showScreen('game');
+  showToast('↩ Undone!');
+  saveState();
+  updateUndoBtn();
+}
+
+function updateUndoBtn() {
+  const btn = document.getElementById('undo-btn');
+  if (btn) btn.disabled = G.history.length === 0;
+}
 
 // ═══════════════════════════════════════════
 //  SETUP
@@ -511,11 +568,13 @@ function renderSetup() {
 }
 
 function startGame() {
+  G.history = [];
   initLevel(1, 0);
   showScreen('game');
   updateDieTags();
   updateRulesBar();
   renderGame();
+  updateUndoBtn();
   saveState();
 }
 
@@ -550,6 +609,7 @@ function initRound(startPlayerIdx) {
 // ═══════════════════════════════════════════
 function rollDie(roll) {
   if (G.bustPending) return;
+  pushHistory();
 
   // ── Handle rolling a 4 ──
   if (roll === 4) {
@@ -579,8 +639,12 @@ function rollDie(roll) {
     newTotal += 50;
     special = '⚡ +50 BONUS!';
   } else if (G.level >= 2 && roll === 2) {
-    newTotal = newTotal * 2;
-    special = '🔥 DOUBLED!';
+    if (G.runningTotal === 0) {
+      newTotal = 2; // doubling zero makes no sense — treat as +2
+    } else {
+      newTotal = newTotal * 2;
+      special = '🔥 DOUBLED!';
+    }
   } else {
     newTotal += roll;
   }
@@ -603,6 +667,7 @@ function rollDie(roll) {
 
 function bankPlayer(idx) {
   if (G.outSet.has(idx) || G.bustPending) return;
+  pushHistory();
 
   G.outSet.add(idx);
   G.roundScores[idx] = G.runningTotal;
@@ -658,6 +723,7 @@ function doBust() {
     <div class="bust-who">${escHtml(busterName)} rolled a 4!</div>
     <div class="bust-note">All remaining players score 0 this round</div>
     <button class="bust-ok" onclick="dismissBust(${nextStart})">OK — Next Round</button>
+    <button class="bust-undo" onclick="undoAction()">↩ Undo (fat finger?)</button>
   `;
   document.body.appendChild(overlay);
 }
@@ -731,6 +797,8 @@ function renderGame() {
 
   const sb = document.getElementById('scoreboard');
   sb.innerHTML = '';
+
+  updateUndoBtn();
 
   G.players.forEach((p, i) => {
     const isCurrent = i === G.currentIdx && !G.outSet.has(i);
