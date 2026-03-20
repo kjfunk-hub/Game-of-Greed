@@ -405,6 +405,21 @@
     @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(16px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
     @keyframes toastOut { to { opacity: 0; } }
 
+    /* ── FIRST-ROLL 4 BANNER ── */
+    .firstroll-banner {
+      position: fixed; top: calc(env(safe-area-inset-top) + 72px);
+      left: 12px; right: 12px; z-index: 400;
+      background: rgba(180, 83, 9, 0.97);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 14px; padding: 14px 20px;
+      text-align: center;
+      font-size: 16px; font-weight: 700; color: white;
+      animation: bannerIn 0.25s ease, bannerOut 0.4s ease 2.6s forwards;
+      pointer-events: none;
+    }
+    @keyframes bannerIn  { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes bannerOut { to   { opacity: 0; transform: translateY(-10px); } }
+
     /* ── MISC ── */
     .divider { height: 1px; background: var(--border); margin: 0; }
     .empty-state { color: var(--muted); font-size: 14px; text-align: center; padding: 20px; }
@@ -673,7 +688,7 @@ function rollDie(roll) {
     if (G.isFirstRoll) {
       // First roll of the round: no bust, just skip this player
       G.isFirstRoll = false;
-      showToast(`${G.players[G.currentIdx].name} rolled a 4 — first roll, no bust!`);
+      showFirstRoll4Banner();
       advancePlayer();
       renderGame();
       saveState();
@@ -1169,6 +1184,15 @@ function showScreen(name) {
   document.getElementById(`screen-${name}`).classList.add('active');
   G.currentScreen = name;
   window.scrollTo(0, 0);
+}
+
+function showFirstRoll4Banner() {
+  document.querySelectorAll('.firstroll-banner').forEach(b => b.remove());
+  const b = document.createElement('div');
+  b.className = 'firstroll-banner';
+  b.textContent = '⚠️ First roll 4\'s are disregarded';
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 3100);
 }
 
 function showToast(msg) {
