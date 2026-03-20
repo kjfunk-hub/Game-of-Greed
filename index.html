@@ -251,6 +251,34 @@
       font-size: 20px; font-weight: 800; cursor: pointer;
     }
 
+    /* ── ALL OUT OVERLAY ── */
+    .allout-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(15, 100, 50, 0.95);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px 24px;
+      animation: overlayIn 0.25s ease;
+    }
+    .allout-overlay .allout-icon { font-size: 72px; margin-bottom: 8px; }
+    .allout-overlay h2 { font-size: 38px; font-weight: 900; color: white; text-align: center; }
+    .allout-overlay .allout-scores {
+      margin-top: 20px; width: 100%; max-width: 340px;
+      background: rgba(255,255,255,0.12); border-radius: 14px; padding: 14px 18px;
+    }
+    .allout-overlay .allout-score-row {
+      display: flex; justify-content: space-between; align-items: center;
+      color: white; font-size: 16px; padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+    }
+    .allout-overlay .allout-score-row:last-child { border-bottom: none; }
+    .allout-overlay .allout-score-row .name { font-weight: 600; }
+    .allout-overlay .allout-score-row .pts { font-weight: 800; color: #86efac; }
+    .allout-overlay .allout-proceed {
+      margin-top: 32px; background: white; color: #15803d;
+      border: none; border-radius: 14px; padding: 16px 36px;
+      font-size: 20px; font-weight: 800; cursor: pointer; text-align: center;
+    }
+
     /* ── LEVEL RESULTS ── */
     .results-top {
       background: linear-gradient(160deg, #1e1230 0%, #0d1117 60%);
@@ -500,9 +528,11 @@ function undoAction() {
   Object.assign(G, prev);
   G.history = remaining;                              // preserve remaining undo steps
 
-  // Remove bust overlay if it's showing
+  // Remove bust or all-out overlay if showing
   const bustEl = document.getElementById('bust-overlay');
   if (bustEl) bustEl.remove();
+  const alloutEl = document.getElementById('allout-overlay');
+  if (alloutEl) alloutEl.remove();
   G.bustPending = false;
 
   updateDieTags();
@@ -736,8 +766,35 @@ function dismissBust(nextStart) {
 
 // ── Round ending ──
 function endRoundAllOut() {
-  // Natural end: advance round start by 1
   const nextStart = (G.roundStartIdx + 1) % G.players.length;
+  const isLastRound = G.round >= 10;
+  const btnLabel = isLastRound
+    ? '🏆 See Level Results'
+    : `▶ Proceed to Round ${G.round + 1}`;
+
+  // Build per-player score rows
+  const scoreRows = G.players.map((p, i) => {
+    const pts = G.roundScores[i] ?? 0;
+    return `<div class="allout-score-row">
+      <span class="name">${escHtml(p.name)}</span>
+      <span class="pts">${pts} pts</span>
+    </div>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'allout-overlay';
+  overlay.id = 'allout-overlay';
+  overlay.innerHTML = `
+    <div class="allout-icon">🎉</div>
+    <h2>All Players Are Out!</h2>
+    <div class="allout-scores">${scoreRows}</div>
+    <button class="allout-proceed" onclick="dismissAllOut(${nextStart})">${btnLabel}</button>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function dismissAllOut(nextStart) {
+  document.getElementById('allout-overlay').remove();
   finalizeRound(nextStart, true);
 }
 
