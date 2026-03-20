@@ -208,9 +208,9 @@
     .undo-btn:not(:disabled):active { background: var(--border); color: var(--text); transform: scale(0.95); }
     .undo-btn:disabled { opacity: 0.25; cursor: default; }
     .bust-overlay .bust-undo {
-      margin-top: 16px; background: rgba(255,255,255,0.15); color: white;
-      border: 2px solid rgba(255,255,255,0.35); border-radius: 14px;
-      padding: 12px 36px; font-size: 16px; font-weight: 700; cursor: pointer;
+      margin-top: 28px; background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.65);
+      border: 1px solid rgba(255,255,255,0.25); border-radius: 10px;
+      padding: 8px 24px; font-size: 13px; font-weight: 600; cursor: pointer;
     }
     .die-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
 
@@ -277,6 +277,11 @@
       margin-top: 32px; background: white; color: #15803d;
       border: none; border-radius: 14px; padding: 16px 36px;
       font-size: 20px; font-weight: 800; cursor: pointer; text-align: center;
+    }
+    .allout-overlay .allout-undo {
+      margin-top: 28px; background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.65);
+      border: 1px solid rgba(255,255,255,0.25); border-radius: 10px;
+      padding: 8px 24px; font-size: 13px; font-weight: 600; cursor: pointer;
     }
 
     /* ── LEVEL RESULTS ── */
@@ -789,6 +794,7 @@ function endRoundAllOut() {
     <h2>All Players Are Out!</h2>
     <div class="allout-scores">${scoreRows}</div>
     <button class="allout-proceed" onclick="dismissAllOut(${nextStart})">${btnLabel}</button>
+    <button class="allout-undo" onclick="undoAction()">↩ Undo (fat finger?)</button>
   `;
   document.body.appendChild(overlay);
 }
