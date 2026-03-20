@@ -359,6 +359,56 @@
       max-width: 320px; text-align: center;
     }
 
+    /* ── LEVEL INTRO ── */
+    #screen-levelintro {
+      display: flex; flex-direction: column; min-height: 100%;
+    }
+    .lvlintro-top {
+      background: linear-gradient(160deg, #0c2a4a 0%, #0d1117 65%);
+      padding: calc(env(safe-area-inset-top) + 48px) 20px 36px;
+      text-align: center;
+    }
+    .lvlintro-eyebrow {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.15em;
+      color: var(--accent2); text-transform: uppercase; margin-bottom: 8px;
+    }
+    .lvlintro-number {
+      font-size: 52px; font-weight: 900; color: white;
+    }
+    .lvlintro-body {
+      flex: 1; padding: 24px 20px 16px;
+    }
+    .lvlintro-new-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      color: var(--accent2); text-transform: uppercase; margin-bottom: 10px;
+    }
+    .lvlintro-carry-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      color: var(--muted); text-transform: uppercase;
+      margin-top: 24px; margin-bottom: 10px;
+    }
+    .lvlintro-rule {
+      display: flex; align-items: flex-start; gap: 14px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px 18px; margin-bottom: 10px;
+    }
+    .lvlintro-rule.is-new {
+      background: rgba(124,58,237,0.18); border-color: rgba(124,58,237,0.5);
+    }
+    .lvlintro-rule-icon { font-size: 30px; line-height: 1; flex-shrink: 0; }
+    .lvlintro-rule-text { display: flex; flex-direction: column; gap: 3px; }
+    .lvlintro-rule-title { font-size: 16px; font-weight: 800; color: var(--text); }
+    .lvlintro-rule.is-new .lvlintro-rule-title { color: #c4b5fd; }
+    .lvlintro-rule-desc  { font-size: 13px; color: var(--muted); line-height: 1.4; }
+    .lvlintro-footer {
+      padding: 16px 20px calc(env(safe-area-inset-bottom) + 24px);
+    }
+    .lvlintro-btn {
+      width: 100%; background: var(--accent); color: white;
+      border: none; border-radius: 16px; padding: 18px;
+      font-size: 20px; font-weight: 800; cursor: pointer;
+    }
+
     /* ── FINAL RESULTS ── */
     .final-top {
       background: linear-gradient(160deg, #1a0e2e 0%, #0d1117 60%);
@@ -504,6 +554,23 @@
   <div class="results-footer">
     <button class="btn-secondary" onclick="shareLevel()">📤 Share These Results</button>
     <button id="res-continue-btn" class="btn-primary" onclick="continueGame()">Continue to Level 2 →</button>
+  </div>
+</div>
+
+<!-- ══════════════ LEVEL INTRO SCREEN ══════════════ -->
+<div id="screen-levelintro" class="screen">
+  <div class="lvlintro-top">
+    <div class="lvlintro-eyebrow">GET READY</div>
+    <div class="lvlintro-number" id="lvlintro-number">Level 2</div>
+  </div>
+  <div class="lvlintro-body">
+    <div class="lvlintro-new-label">🆕 NEW THIS LEVEL</div>
+    <div id="lvlintro-new-rules"></div>
+    <div class="lvlintro-carry-label" id="lvlintro-carry-label">STILL IN PLAY</div>
+    <div id="lvlintro-carry-rules"></div>
+  </div>
+  <div class="lvlintro-footer">
+    <button class="lvlintro-btn" id="lvlintro-btn" onclick="startNextLevel()">▶ Start Level 2</button>
   </div>
 </div>
 
@@ -1021,12 +1088,61 @@ function renderFinalResults() {
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
+// ── Level intro data ──
+const LEVEL_RULES = {
+  2: { icon: '🔥', title: 'Rolling a 2 Doubles Your Total',    desc: 'If you roll a 2, your running total is multiplied by 2. (If your total is 0, it counts as +2 instead.)' },
+  3: { icon: '⚡', title: 'Rolling a 5 Adds +50 Bonus Points', desc: 'Roll a 5 and instantly add 50 points to your running total. All Level 2 rules still apply.' },
+  4: { icon: '💥', title: 'Rolling a 1 Adds +100 Bonus Points', desc: 'Roll a 1 and instantly add 100 points to your running total. All Level 2 & 3 rules still apply.' },
+};
+
 function continueGame() {
   if (G.level >= 4) {
     renderFinalResults();
     showScreen('final');
     return;
   }
+  renderLevelIntro(G.level + 1);
+  showScreen('levelintro');
+}
+
+function renderLevelIntro(nextLevel) {
+  document.getElementById('lvlintro-number').textContent = `Level ${nextLevel}`;
+  document.getElementById('lvlintro-btn').textContent = `▶ Start Level ${nextLevel}`;
+
+  // New rule for this level
+  const newRule = LEVEL_RULES[nextLevel];
+  document.getElementById('lvlintro-new-rules').innerHTML = `
+    <div class="lvlintro-rule is-new">
+      <div class="lvlintro-rule-icon">${newRule.icon}</div>
+      <div class="lvlintro-rule-text">
+        <div class="lvlintro-rule-title">${newRule.title}</div>
+        <div class="lvlintro-rule-desc">${newRule.desc}</div>
+      </div>
+    </div>`;
+
+  // Carry-over rules from prior levels (levels 2 up to nextLevel-1)
+  const carryKeys = Object.keys(LEVEL_RULES).map(Number).filter(l => l < nextLevel);
+  const carryLabel = document.getElementById('lvlintro-carry-label');
+  const carryContainer = document.getElementById('lvlintro-carry-rules');
+  if (carryKeys.length === 0) {
+    carryLabel.style.display = 'none';
+    carryContainer.innerHTML = '';
+  } else {
+    carryLabel.style.display = '';
+    carryContainer.innerHTML = carryKeys.map(l => {
+      const r = LEVEL_RULES[l];
+      return `<div class="lvlintro-rule">
+        <div class="lvlintro-rule-icon">${r.icon}</div>
+        <div class="lvlintro-rule-text">
+          <div class="lvlintro-rule-title">${r.title}</div>
+          <div class="lvlintro-rule-desc">${r.desc}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function startNextLevel() {
   const nextLevel = G.level + 1;
   initLevel(nextLevel, 0);
   showScreen('game');
